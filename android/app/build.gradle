@@ -1,0 +1,40 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.lucslima.flowmodoro'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'com.lucslima.flowmodoro'
+        minSdk 26
+        targetSdk 35
+        versionCode 1
+        versionName '1.0'
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            // Assinado com a chave de debug para poder instalar direto no celular.
+            signingConfig signingConfigs.debug
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    // O index.html da raiz do repositório é a única fonte da interface.
+    sourceSets {
+        main.assets.srcDirs += ["$buildDir/generated/webassets"]
+    }
+}
+
+def copyWeb = tasks.register('copyWebAssets', Copy) {
+    from(rootProject.file('../index.html'))
+    into("$buildDir/generated/webassets")
+}
+tasks.named('preBuild') { dependsOn copyWeb }

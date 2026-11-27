@@ -28,3 +28,19 @@ Abra o `index.html` no navegador (não precisa instalar nada).
 - Notificações do navegador, alarme sonoro e tempo no título da aba
 - Estatísticas e registro do dia (salvos no navegador)
 - Atalhos: `Espaço` iniciar/parar, `P` pausar, `S` pular pausa
+
+## App Android
+
+A pasta `android/` tem um app que mostra o mesmo `index.html` em tela cheia. No celular, o app também:
+
+- toca um alarme e mostra uma notificação quando a pausa acaba, mesmo com a tela apagada;
+- mantém a tela ligada enquanto o timer está rodando.
+
+Para gerar o APK (precisa do Android SDK e do Java 17 ou mais novo):
+
+```bash
+cd android
+gradle assembleRelease
+```
+
+O APK fica em `android/app/build/outputs/apk/release/app-release.apk`.
