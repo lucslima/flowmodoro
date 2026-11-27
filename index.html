@@ -1,0 +1,669 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FLOWMODORO</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=VT323&family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --fg: #33ff66;
+    --fg-dim: #1a9c3d;
+    --fg-faint: #0d4d1f;
+    --bg: #050a06;
+    --bg-panel: #07120a;
+    --glow: rgba(51, 255, 102, .55);
+    --alert: #ff4d4d;
+  }
+  :root[data-theme="amber"] {
+    --fg: #ffb000;
+    --fg-dim: #b37a00;
+    --fg-faint: #4d3500;
+    --bg: #0a0700;
+    --bg-panel: #120d02;
+    --glow: rgba(255, 176, 0, .5);
+  }
+  :root[data-theme="cyan"] {
+    --fg: #5ef2ff;
+    --fg-dim: #2aa3ad;
+    --fg-faint: #0f4146;
+    --bg: #03080a;
+    --bg-panel: #061114;
+    --glow: rgba(94, 242, 255, .5);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: #000;
+    color: var(--fg);
+    font-family: "VT323", "Courier New", monospace;
+    font-size: 22px;
+    display: flex;
+    padding: 16px;
+    overflow-x: hidden;
+  }
+
+  /* ---------- CRT ---------- */
+  .crt {
+    position: relative;
+    width: 100%;
+    max-width: 760px;
+    margin: auto;
+    background: radial-gradient(ellipse at center, var(--bg-panel) 0%, var(--bg) 80%);
+    border: 3px solid var(--fg-faint);
+    border-radius: 18px;
+    padding: 28px 28px 22px;
+    box-shadow:
+      0 0 0 10px #111,
+      0 0 0 12px #222,
+      0 0 60px var(--fg-faint),
+      inset 0 0 80px rgba(0,0,0,.9);
+    text-shadow: 0 0 4px var(--glow), 0 0 10px var(--glow);
+    overflow: hidden;
+    animation: flicker 6s infinite;
+  }
+  .crt::before {            /* scanlines */
+    content: "";
+    position: absolute; inset: 0;
+    background: repeating-linear-gradient(
+      to bottom, rgba(0,0,0,0) 0, rgba(0,0,0,0) 2px, rgba(0,0,0,.28) 3px, rgba(0,0,0,0) 4px);
+    pointer-events: none;
+    z-index: 5;
+  }
+  .crt::after {             /* moving refresh bar */
+    content: "";
+    position: absolute; left: 0; right: 0; height: 120px; top: -120px;
+    background: linear-gradient(to bottom, transparent, rgba(255,255,255,.035), transparent);
+    animation: scan 7s linear infinite;
+    pointer-events: none;
+    z-index: 6;
+  }
+  @keyframes scan { to { top: 110%; } }
+  @keyframes flicker {
+    0%, 97%, 100% { opacity: 1; }
+    98% { opacity: .93; }
+    99% { opacity: .98; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .crt, .crt::after, .blink { animation: none !important; }
+  }
+
+  /* ---------- header ---------- */
+  pre.logo {
+    margin: 0 0 4px;
+    font-family: "VT323", monospace;
+    font-size: 15px;
+    line-height: 1;
+    white-space: pre;
+    text-align: center;
+    overflow: hidden;
+  }
+  h1.logo-sm {
+    display: none;
+    font-family: "Press Start 2P", monospace;
+    font-size: 20px;
+    text-align: center;
+    margin: 4px 0 10px;
+    letter-spacing: 2px;
+    font-weight: normal;
+  }
+  .sub {
+    text-align: center;
+    color: var(--fg-dim);
+    font-size: 18px;
+    margin-bottom: 18px;
+    letter-spacing: 1px;
+  }
+  hr.dash {
+    border: 0;
+    border-top: 2px dashed var(--fg-faint);
+    margin: 14px 0;
+  }
+
+  /* ---------- status + clock ---------- */
+  .status {
+    font-family: "Press Start 2P", monospace;
+    font-size: 13px;
+    text-align: center;
+    letter-spacing: 2px;
+    min-height: 20px;
+  }
+  .status.alert { color: var(--alert); text-shadow: 0 0 8px var(--alert); }
+  .clock {
+    font-family: "Press Start 2P", monospace;
+    font-size: clamp(40px, 12vw, 84px);
+    text-align: center;
+    margin: 18px 0 10px;
+    letter-spacing: 4px;
+    line-height: 1.1;
+  }
+  .clock .blink { animation: blink 1s steps(1) infinite; }
+  .clock.paused { opacity: .55; }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  .bar {
+    font-family: "VT323", monospace;
+    font-size: 22px;
+    text-align: center;
+    white-space: pre;
+    overflow: hidden;
+    color: var(--fg-dim);
+    min-height: 26px;
+  }
+  .hint {
+    text-align: center;
+    color: var(--fg-dim);
+    font-size: 20px;
+    min-height: 26px;
+    margin-top: 4px;
+  }
+
+  /* ---------- buttons ---------- */
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    justify-content: center;
+    margin: 18px 0 6px;
+  }
+  button {
+    font-family: "Press Start 2P", monospace;
+    font-size: 12px;
+    color: var(--bg);
+    background: var(--fg);
+    border: 0;
+    padding: 14px 18px;
+    cursor: pointer;
+    box-shadow: 4px 4px 0 var(--fg-faint), 0 0 12px var(--glow);
+    text-shadow: none;
+    letter-spacing: 1px;
+    transition: transform .05s;
+  }
+  button:hover { filter: brightness(1.15); }
+  button:active { transform: translate(3px, 3px); box-shadow: 1px 1px 0 var(--fg-faint); }
+  button:focus-visible { outline: 2px dashed var(--fg); outline-offset: 4px; }
+  button.ghost {
+    background: transparent;
+    color: var(--fg);
+    border: 2px solid var(--fg);
+    box-shadow: 4px 4px 0 var(--fg-faint);
+    text-shadow: 0 0 6px var(--glow);
+  }
+  button[hidden] { display: none; }
+
+  /* ---------- stats ---------- */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    text-align: center;
+  }
+  .stat {
+    border: 2px solid var(--fg-faint);
+    padding: 8px 4px;
+  }
+  .stat .k { color: var(--fg-dim); font-size: 17px; }
+  .stat .v { font-size: 30px; }
+
+  /* ---------- settings / log ---------- */
+  details { margin-top: 10px; }
+  summary {
+    cursor: pointer;
+    list-style: none;
+    color: var(--fg);
+    font-size: 22px;
+  }
+  summary::-webkit-details-marker { display: none; }
+  summary::before { content: "[+] "; }
+  details[open] > summary::before { content: "[-] "; }
+
+  .opts { padding: 8px 0 0 8px; }
+  .row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin: 8px 0; }
+  .row > .lbl { color: var(--fg-dim); min-width: 150px; }
+  .radio {
+    cursor: pointer;
+    user-select: none;
+  }
+  .radio input { position: absolute; opacity: 0; pointer-events: none; }
+  .radio span::before { content: "( ) "; }
+  .radio input:checked + span::before { content: "(*) "; }
+  .radio input:focus-visible + span { outline: 1px dashed var(--fg); }
+  .radio input:checked + span { color: var(--fg); }
+  .radio span { color: var(--fg-dim); }
+  .info { color: var(--fg-dim); font-size: 18px; line-height: 1.25; margin: 4px 0 0; }
+
+  ol.log {
+    margin: 8px 0 0;
+    padding: 0 0 0 8px;
+    list-style: none;
+    max-height: 180px;
+    overflow-y: auto;
+    font-size: 20px;
+  }
+  ol.log li { white-space: pre; overflow: hidden; text-overflow: ellipsis; }
+  ol.log li.empty { color: var(--fg-dim); }
+
+  .footer {
+    margin-top: 14px;
+    text-align: center;
+    font-size: 16px;
+    color: var(--fg-faint);
+    text-shadow: none;
+  }
+  kbd {
+    font-family: inherit;
+    border: 1px solid var(--fg-faint);
+    padding: 0 4px;
+  }
+
+  @media (max-width: 520px) {
+    body { padding: 8px; font-size: 20px; }
+    .crt { padding: 20px 14px 16px; border-radius: 10px; }
+    pre.logo { display: none; }
+    h1.logo-sm { display: block; }
+    .grid { grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+    .stat .v { font-size: 24px; }
+    .stat .k { font-size: 15px; }
+    button { font-size: 10px; padding: 12px 12px; }
+    .row > .lbl { min-width: 100%; }
+  }
+</style>
+</head>
+<body>
+<main class="crt" id="crt">
+<pre class="logo" aria-label="FLOWMODORO">
+ ___ _    _____      ____  __  ___  ___   ___  ___  ___
+| __| |  / _ \ \    / /  \/  |/ _ \|   \ / _ \| _ \/ _ \
+| _|| |_| (_) \ \/\/ /| |\/| | (_) | |) | (_) |   / (_) |
+|_| |____\___/ \_/\_/ |_|  |_|\___/|___/ \___/|_|_\\___/
+</pre>
+  <h1 class="logo-sm">FLOWMODORO</h1>
+  <div class="sub">FOCO LIVRE &middot; PAUSA PROPORCIONAL &middot; v1.0</div>
+
+  <div class="status" id="status" aria-live="polite">&gt; PRONTO PARA FOCAR_</div>
+  <div class="clock" id="clock" role="timer">00<span class="blink">:</span>00</div>
+  <div class="bar" id="bar"> </div>
+  <div class="hint" id="hint">Aperte INICIAR e estude até cansar.</div>
+
+  <div class="controls">
+    <button id="btnMain">&#9654; INICIAR</button>
+    <button id="btnPause" class="ghost" hidden>|| PAUSAR</button>
+    <button id="btnSkip" class="ghost" hidden>&#187; PULAR</button>
+    <button id="btnCancel" class="ghost" hidden>X DESCARTAR</button>
+  </div>
+
+  <hr class="dash">
+
+  <div class="grid">
+    <div class="stat"><div class="k">FOCO HOJE</div><div class="v" id="stFocus">0m</div></div>
+    <div class="stat"><div class="k">PAUSA HOJE</div><div class="v" id="stBreak">0m</div></div>
+    <div class="stat"><div class="k">SESSÕES</div><div class="v" id="stCount">0</div></div>
+  </div>
+
+  <details id="optsBox">
+    <summary>CONFIGURAÇÕES</summary>
+    <div class="opts">
+      <div class="row" role="radiogroup" aria-label="Proporção foco/pausa">
+        <span class="lbl">PROPORÇÃO:</span>
+        <label class="radio"><input type="radio" name="ratio" value="5"><span>5:1 (padrão)</span></label>
+        <label class="radio"><input type="radio" name="ratio" value="4"><span>4:1</span></label>
+        <label class="radio"><input type="radio" name="ratio" value="3"><span>3:1</span></label>
+      </div>
+      <p class="info" id="ratioInfo"></p>
+      <div class="row" role="radiogroup" aria-label="Pausa mínima">
+        <span class="lbl">PAUSA MÍNIMA:</span>
+        <label class="radio"><input type="radio" name="minbreak" value="0"><span>nenhuma</span></label>
+        <label class="radio"><input type="radio" name="minbreak" value="3"><span>3 min</span></label>
+        <label class="radio"><input type="radio" name="minbreak" value="5"><span>5 min</span></label>
+      </div>
+      <div class="row" role="radiogroup" aria-label="Som">
+        <span class="lbl">SOM:</span>
+        <label class="radio"><input type="radio" name="sound" value="on"><span>ligado</span></label>
+        <label class="radio"><input type="radio" name="sound" value="off"><span>desligado</span></label>
+      </div>
+      <div class="row" role="radiogroup" aria-label="Lembrete de hiperfoco">
+        <span class="lbl">LEMBRETE HIPERFOCO:</span>
+        <label class="radio"><input type="radio" name="nudge" value="0"><span>off</span></label>
+        <label class="radio"><input type="radio" name="nudge" value="60"><span>60m</span></label>
+        <label class="radio"><input type="radio" name="nudge" value="90"><span>90m</span></label>
+        <label class="radio"><input type="radio" name="nudge" value="120"><span>120m</span></label>
+      </div>
+      <div class="row" role="radiogroup" aria-label="Cor do monitor">
+        <span class="lbl">MONITOR:</span>
+        <label class="radio"><input type="radio" name="theme" value="green"><span>verde</span></label>
+        <label class="radio"><input type="radio" name="theme" value="amber"><span>âmbar</span></label>
+        <label class="radio"><input type="radio" name="theme" value="cyan"><span>ciano</span></label>
+      </div>
+      <div class="row">
+        <button class="ghost" id="btnNotify" type="button">ATIVAR NOTIFICACOES</button>
+        <button class="ghost" id="btnReset" type="button">ZERAR HOJE</button>
+      </div>
+    </div>
+  </details>
+
+  <details>
+    <summary>REGISTRO DE HOJE</summary>
+    <ol class="log" id="log"></ol>
+  </details>
+
+  <div class="footer">
+    <kbd>ESPAÇO</kbd> iniciar/parar &middot; <kbd>P</kbd> pausar &middot; <kbd>S</kbd> pular pausa
+  </div>
+</main>
+
+<script>
+(() => {
+  "use strict";
+
+  // ---------- persistence (all wrapped: storage may be blocked) ----------
+  const KEY = "flowmodoro.v1";
+  const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch { return {}; } };
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch {} };
+
+  const today = () => new Date().toLocaleDateString("sv-SE"); // YYYY-MM-DD
+
+  const defaults = {
+    settings: { ratio: 5, minbreak: 0, sound: "on", nudge: 90, theme: "green" },
+    mode: "idle",            // idle | focus | break | breakdone
+    focusStart: 0,           // epoch ms of current focus segment start
+    focusAccum: 0,           // ms accumulated before current segment (pauses)
+    paused: false,
+    breakEnd: 0,
+    breakTotal: 0,
+    nudged: false,
+    day: today(),
+    log: []                  // {t:"focus"|"break", ms, at}
+  };
+  const S = Object.assign({}, defaults, load());
+  S.settings = Object.assign({}, defaults.settings, S.settings || {});
+  if (S.day !== today()) { S.day = today(); S.log = []; }
+
+  // ---------- DOM ----------
+  const $ = id => document.getElementById(id);
+  const el = {
+    status: $("status"), clock: $("clock"), bar: $("bar"), hint: $("hint"),
+    main: $("btnMain"), pause: $("btnPause"), skip: $("btnSkip"), cancel: $("btnCancel"),
+    stFocus: $("stFocus"), stBreak: $("stBreak"), stCount: $("stCount"),
+    log: $("log"), ratioInfo: $("ratioInfo"), notify: $("btnNotify"), reset: $("btnReset")
+  };
+
+  // ---------- helpers ----------
+  const pad = n => String(n).padStart(2, "0");
+  function fmtClock(ms) {
+    const total = Math.max(0, Math.round(ms / 1000));
+    const h = Math.floor(total / 3600), m = Math.floor(total % 3600 / 60), s = total % 60;
+    const sep = '<span class="blink">:</span>';
+    return h > 0 ? `${h}${sep}${pad(m)}${sep}${pad(s)}` : `${pad(m)}${sep}${pad(s)}`;
+  }
+  function fmtPlain(ms) {
+    const total = Math.max(0, Math.round(ms / 1000));
+    const h = Math.floor(total / 3600), m = Math.floor(total % 3600 / 60), s = total % 60;
+    return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`;
+  }
+  function fmtShort(ms) {
+    const m = Math.floor(ms / 60000);
+    if (m < 60) return `${m}m`;
+    return `${Math.floor(m / 60)}h${pad(m % 60)}`;
+  }
+  const focusElapsed = () => S.focusAccum + (S.mode === "focus" && !S.paused ? Date.now() - S.focusStart : 0);
+  function breakFor(focusMs) {
+    const earned = focusMs / S.settings.ratio;
+    return Math.max(earned, S.settings.minbreak * 60000);
+  }
+  function asciiBar(frac, width) {
+    const n = Math.round(Math.max(0, Math.min(1, frac)) * width);
+    return "[" + "#".repeat(n) + ".".repeat(width - n) + "]";
+  }
+  const barWidth = () => (window.innerWidth < 520 ? 18 : 32);
+
+  // ---------- sound: tiny square-wave chiptune ----------
+  let actx = null;
+  function beep(seq) {
+    if (S.settings.sound !== "on") return;
+    try {
+      actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+      if (actx.state === "suspended") actx.resume();
+      let t = actx.currentTime + 0.02;
+      for (const [freq, dur] of seq) {
+        if (freq) {
+          const o = actx.createOscillator(), g = actx.createGain();
+          o.type = "square"; o.frequency.value = freq;
+          g.gain.setValueAtTime(0.0001, t);
+          g.gain.exponentialRampToValueAtTime(0.08, t + 0.01);
+          g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+          o.connect(g).connect(actx.destination);
+          o.start(t); o.stop(t + dur + 0.02);
+        }
+        t += dur;
+      }
+    } catch {}
+  }
+  const SFX = {
+    start:  [[523, .08], [659, .08], [784, .14]],
+    stop:   [[784, .08], [659, .08], [523, .14]],
+    done:   [[784, .12], [0, .05], [784, .12], [0, .05], [1047, .3], [0, .15], [784, .12], [1047, .4]],
+    nudge:  [[440, .1], [0, .08], [440, .1]],
+    click:  [[880, .03]]
+  };
+
+  // ---------- notifications ----------
+  function notify(title, body) {
+    try {
+      if ("Notification" in window && Notification.permission === "granted") {
+        new Notification(title, { body, tag: "flowmodoro" });
+      }
+    } catch {}
+  }
+  function refreshNotifyBtn() {
+    if (!("Notification" in window)) { el.notify.hidden = true; return; }
+    el.notify.textContent = Notification.permission === "granted" ? "NOTIFICACOES: ON" :
+                            Notification.permission === "denied" ? "NOTIFICACOES: BLOQUEADAS" : "ATIVAR NOTIFICACOES";
+  }
+
+  // ---------- state transitions ----------
+  function startFocus() {
+    S.mode = "focus"; S.focusStart = Date.now(); S.focusAccum = 0; S.paused = false; S.nudged = false;
+    beep(SFX.start); save(); render();
+  }
+  function togglePause() {
+    if (S.mode !== "focus") return;
+    if (S.paused) { S.focusStart = Date.now(); S.paused = false; }
+    else { S.focusAccum += Date.now() - S.focusStart; S.paused = true; }
+    beep(SFX.click); save(); render();
+  }
+  function stopFocus() {
+    const worked = focusElapsed();
+    if (worked < 5000) { cancelFocus(); return; } // accidental tap
+    S.log.push({ t: "focus", ms: worked, at: Date.now() });
+    const br = breakFor(worked);
+    S.mode = "break"; S.breakTotal = br; S.breakEnd = Date.now() + br;
+    S.focusAccum = 0; S.paused = false;
+    beep(SFX.stop); save(); render();
+  }
+  function cancelFocus() {
+    S.mode = "idle"; S.focusAccum = 0; S.paused = false;
+    save(); render();
+  }
+  function endBreak(skipped) {
+    const used = S.breakTotal - Math.max(0, S.breakEnd - Date.now());
+    S.log.push({ t: "break", ms: used, at: Date.now(), skipped: !!skipped });
+    if (skipped) { S.mode = "idle"; beep(SFX.click); }
+    else {
+      S.mode = "breakdone"; beep(SFX.done);
+      notify("FLOWMODORO", "Pausa acabou! Bora voltar quando estiver pronto.");
+    }
+    save(); render();
+  }
+
+  // ---------- render ----------
+  const BRAIN_MSGS = [
+    "Siga o fluxo. Pare quando sentir que cansou.",
+    "Sem pressão: o relógio só está anotando.",
+    "Distraiu? Tudo bem. Volte ou pare — você decide.",
+    "Hiperfoco é ótimo, mas lembre de beber água.",
+    "Cada minuto aqui vale descanso depois."
+  ];
+  let lastHintSwap = 0, hintIdx = 0;
+
+  function render() {
+    const m = S.mode;
+    el.status.classList.toggle("alert", m === "breakdone");
+    el.clock.classList.toggle("paused", m === "focus" && S.paused);
+
+    if (m === "idle") {
+      el.status.innerHTML = "&gt; PRONTO PARA FOCAR_";
+      el.clock.innerHTML = fmtClock(0);
+      el.bar.textContent = " ";
+      el.hint.textContent = "Aperte INICIAR e estude até cansar.";
+      el.main.innerHTML = "&#9654; INICIAR";
+      show(el.pause, false); show(el.skip, false); show(el.cancel, false);
+      document.title = "FLOWMODORO";
+    } else if (m === "focus") {
+      const w = focusElapsed(), br = breakFor(w);
+      el.status.innerHTML = S.paused ? "&gt; FOCO EM PAUSA" : "&gt; MODO FOCO :: GRAVANDO";
+      el.clock.innerHTML = fmtClock(w);
+      el.bar.textContent = `PAUSA ACUMULADA: ${fmtPlain(br)}`;
+      if (Date.now() - lastHintSwap > 45000) { hintIdx = (hintIdx + 1) % BRAIN_MSGS.length; lastHintSwap = Date.now(); }
+      el.hint.textContent = S.paused ? "Interrupção? O tempo parado não conta." : BRAIN_MSGS[hintIdx];
+      el.main.innerHTML = "&#9632; CANSEI, PAUSA";
+      el.pause.innerHTML = S.paused ? "&#9654; CONTINUAR" : "|| PAUSAR";
+      show(el.pause, true); show(el.skip, false); show(el.cancel, true);
+      document.title = `${S.paused ? "||" : "●"} ${fmtPlain(w)} · FOCO`;
+    } else if (m === "break") {
+      const left = Math.max(0, S.breakEnd - Date.now());
+      el.status.innerHTML = "&gt; MODO PAUSA :: DESCANSE";
+      el.clock.innerHTML = fmtClock(left);
+      el.bar.textContent = asciiBar(1 - left / S.breakTotal, barWidth());
+      el.hint.textContent = "Levante, alongue, beba água. Longe da tela.";
+      el.main.innerHTML = "&#9654; VOLTAR A FOCAR";
+      el.skip.innerHTML = "&#187; PULAR PAUSA";
+      show(el.pause, false); show(el.skip, true); show(el.cancel, false);
+      document.title = `☕ ${fmtPlain(left)} · PAUSA`;
+    } else if (m === "breakdone") {
+      el.status.innerHTML = "*** PAUSA CONCLUIDA ***";
+      el.clock.innerHTML = fmtClock(0);
+      el.bar.textContent = asciiBar(1, barWidth());
+      el.hint.textContent = "Recarregado. Inicie quando estiver pronto.";
+      el.main.innerHTML = "&#9654; INICIAR";
+      show(el.pause, false); show(el.skip, false); show(el.cancel, false);
+      document.title = "⏰ PAUSA ACABOU · FLOWMODORO";
+    }
+    renderStats();
+  }
+  function show(b, v) { b.hidden = !v; }
+
+  let lastStatsKey = "";
+  function renderStats() {
+    const key = S.log.length + "|" + S.day;
+    if (key === lastStatsKey) return;
+    lastStatsKey = key;
+    let f = 0, b = 0, c = 0;
+    for (const e of S.log) { if (e.t === "focus") { f += e.ms; c++; } else b += e.ms; }
+    el.stFocus.textContent = fmtShort(f);
+    el.stBreak.textContent = fmtShort(b);
+    el.stCount.textContent = c;
+    el.log.innerHTML = "";
+    if (!S.log.length) {
+      el.log.innerHTML = '<li class="empty">nenhuma sessão ainda.</li>';
+      return;
+    }
+    S.log.slice().reverse().forEach(e => {
+      const li = document.createElement("li");
+      const time = new Date(e.at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+      li.textContent = e.t === "focus"
+        ? `${time}  FOCO   ${fmtPlain(e.ms).padStart(8)}`
+        : `${time}  PAUSA  ${fmtPlain(e.ms).padStart(8)}${e.skipped ? "  (pulada)" : ""}`;
+      el.log.appendChild(li);
+    });
+  }
+
+  function renderRatioInfo() {
+    const r = S.settings.ratio;
+    const ex = [25, 60, 90].map(min => `${min}min→${Math.round(min / r)}min`).join(" · ");
+    el.ratioInfo.textContent =
+      `A cada ${r} min de foco você ganha 1 min de pausa. Ex: ${ex}. ` +
+      `5:1 é a proporção clássica do Flowmodoro; 3:1 dá pausas mais longas (1h → 20min).`;
+  }
+
+  // ---------- tick ----------
+  function tick() {
+    if (S.day !== today() && S.mode === "idle") { S.day = today(); S.log = []; save(); lastStatsKey = ""; }
+    if (S.mode === "focus" && !S.paused) {
+      const n = S.settings.nudge;
+      if (n > 0 && !S.nudged && focusElapsed() >= n * 60000) {
+        S.nudged = true; save();
+        beep(SFX.nudge);
+        notify("FLOWMODORO", `Você está focado há ${n} min. Ainda rendendo? Se cansou, faça a pausa.`);
+      }
+    }
+    if (S.mode === "break" && Date.now() >= S.breakEnd) endBreak(false);
+    if (S.mode !== "idle") render();
+  }
+  setInterval(tick, 250);
+  document.addEventListener("visibilitychange", tick);
+
+  // ---------- events ----------
+  el.main.addEventListener("click", () => {
+    if (S.mode === "focus") stopFocus();
+    else if (S.mode === "break") { endBreak(true); startFocus(); }
+    else startFocus();
+  });
+  el.pause.addEventListener("click", togglePause);
+  el.skip.addEventListener("click", () => { if (S.mode === "break") endBreak(true); });
+  el.cancel.addEventListener("click", () => {
+    if (S.mode === "focus" && confirm("Descartar esta sessão de foco sem registrar?")) cancelFocus();
+  });
+  el.notify.addEventListener("click", async () => {
+    try { await Notification.requestPermission(); } catch {}
+    refreshNotifyBtn();
+  });
+  el.reset.addEventListener("click", () => {
+    if (!confirm("Zerar o registro de hoje?")) return;
+    S.log = []; lastStatsKey = ""; save(); render();
+  });
+
+  document.addEventListener("keydown", e => {
+    if (e.target.closest("input, textarea, summary, button, label")) {
+      if (e.code === "Space" || e.key === "Enter") return;
+    }
+    if (e.code === "Space") { e.preventDefault(); el.main.click(); }
+    else if (e.key === "p" || e.key === "P") togglePause();
+    else if ((e.key === "s" || e.key === "S") && S.mode === "break") endBreak(true);
+  });
+
+  // settings radios
+  function bindRadio(name, parse) {
+    document.querySelectorAll(`input[name="${name}"]`).forEach(inp => {
+      inp.checked = String(S.settings[name]) === inp.value;
+      inp.addEventListener("change", () => {
+        S.settings[name] = parse(inp.value);
+        if (name === "theme") applyTheme();
+        if (name === "ratio") renderRatioInfo();
+        if (name === "sound" && inp.value === "on") beep(SFX.click);
+        save(); render();
+      });
+    });
+  }
+  function applyTheme() {
+    const t = S.settings.theme;
+    if (t === "green") document.documentElement.removeAttribute("data-theme");
+    else document.documentElement.setAttribute("data-theme", t);
+  }
+  bindRadio("ratio", Number);
+  bindRadio("minbreak", Number);
+  bindRadio("sound", String);
+  bindRadio("nudge", Number);
+  bindRadio("theme", String);
+
+  applyTheme();
+  renderRatioInfo();
+  refreshNotifyBtn();
+  render();
+  tick();
+})();
+</script>
+</body>
+</html>
