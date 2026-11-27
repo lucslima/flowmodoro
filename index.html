@@ -289,8 +289,8 @@
   <div class="hint" id="hint">Aperte INICIAR e estude até cansar.</div>
 
   <div class="controls">
-    <button id="btnMain">&#9654; YASMIN</button>
-    <button id="btnPause" class="ghost" hidden>|| YASMIN</button>
+    <button id="btnMain">&#9654; INICIAR</button>
+    <button id="btnPause" class="ghost" hidden>|| PAUSAR</button>
     <button id="btnSkip" class="ghost" hidden>&#187; PULAR</button>
     <button id="btnCancel" class="ghost" hidden>X DESCARTAR</button>
   </div>
@@ -529,7 +529,7 @@
       if (Date.now() - lastHintSwap > 45000) { hintIdx = (hintIdx + 1) % BRAIN_MSGS.length; lastHintSwap = Date.now(); }
       el.hint.textContent = S.paused ? "Interrupção? O tempo parado não conta." : BRAIN_MSGS[hintIdx];
       el.main.innerHTML = "&#9632; CANSEI, PAUSA";
-      el.pause.innerHTML = S.paused ? "&#9654; CONTINUAR" : "|| YASMIN";
+      el.pause.innerHTML = S.paused ? "&#9654; CONTINUAR" : "|| PAUSAR";
       show(el.pause, true); show(el.skip, false); show(el.cancel, true);
       document.title = `${S.paused ? "||" : "●"} ${fmtPlain(w)} · FOCO`;
     } else if (m === "break") {
